@@ -31,55 +31,97 @@ Ticker display_ticker;
 #define P_C 18
 #define P_D 5
 #define P_E 15
-#define P_OE 2
+//#define P_OE 2
+#define P_OE 16
+#define ROWS 64
+#define COLS 64
 
-bool WORLD[32][32]; // Creation of the world
-bool WORLD2[32][32]; // Creation of the world
+bool WORLD[ROWS][COLS]; // Creation of the world
+bool WORLD2[ROWS][COLS]; // Creation of the world
 int step_GOL; //used to know the generation
 //uint16_t world_frame[16][32];
 
- PxMATRIX display(32,32,P_LAT, P_OE,P_A,P_B,P_C);
+// PxMATRIX display(ROWS,COLS,P_LAT, P_OE,P_A,P_B,P_C);
 // PxMATRIX display(64,32,P_LAT, P_OE,P_A,P_B,P_C,P_D);
-//PxMATRIX display(64, 32, P_LAT, P_OE, P_A, P_B, P_C, P_D, P_E);
+PxMATRIX display(ROWS, COLS, P_LAT, P_OE, P_A, P_B, P_C, P_D, P_E);
 
 
 
 // ISR for display refresh
 void display_updater() {
-  display.display(70);
+  display.display(30);
+  vTaskDelay(1);
 }
 void initializeWorld(){
   display.clearDisplay();
   delay(500);
   randomSeed(analogRead(5));
  
-  for (byte i = 0; i < 32; i++) {
-    for (byte j = 0; j < 32; j++) {
-      WORLD[i][j] = random(0, 2);
+  for (byte i = 0; i < ROWS; i++) {
+    for (byte j = 0; j < COLS; j++) {
+        if (random(0,100) > 40){
+          WORLD[i][j] = 1;
+        } else {
+          WORLD[i][j] = 0;
+        }
+      
     }
   }
 }
 void setup() {
-  display.begin(8);
+  display.begin(32);
   display.clearDisplay();
   initializeWorld();
   display_ticker.attach(0.002, display_updater);
   yield(); 
 }
+void gayDrawPixel(int x, int y){
+	// 64 rows
+	// Red
+	// Orange
+	// Yellow
+	// Green
+	// Blue
+	// Purple
+	// 64/6 is 10, so 12, 22, 32, 42, 52, 64
+	if (y < 12){
+		// Red
+		display.drawPixel(x, y, display.color565(random(0,120), random(0, 18),random(0, 18)));
+	} else if ( y < 22){
+		// Orange
+		display.drawPixel(x, y, display.color565(random(80,180), random(20, 60),random(0, 18)));
+	} else if ( y < 32){
+		// Yellow
+		display.drawPixel(x, y, display.color565(random(50,135), random(30, 140),random(0, 18)));
+	} else if ( y < 42){
+		// Green
+		display.drawPixel(x, y, display.color565(random(0, 30), random(60, 130),random(0, 20)));
+	} else if ( y < 52){
+		// Blue
+		display.drawPixel(x, y, display.color565(random(0,40), random(0,50),random(50, 140)));
+	} else {
+		// Purple
+		display.drawPixel(x, y, display.color565(random(50,130), random(0, 20),random(80,150)));
+	}
+
+}
 
 void drawFrame() {
   display.clearDisplay();
-  int imageHeight = 32;
-  int imageWidth = 32;
+  int imageHeight = ROWS;
+  int imageWidth = COLS;
   for (int yy = 0; yy < imageHeight; yy++) {
     for (int xx = 0; xx < imageWidth; xx++) {
       if(WORLD[yy][xx] == 1) {
-        display.drawPixel(xx, yy, display.color565(random(0,255), random(0,255), random(0,255)));
+        gayDrawPixel(xx,yy);
+        /* display.drawPixel(xx, yy, display.color565(random(0,200), random(0,128), random(0,128))); */
       } else {
         display.drawPixel(xx, yy, 0x0000);
       }
     }
   }
+
+  vTaskDelay(10);
   delay(350);
 }
 
@@ -91,24 +133,24 @@ inline int8_t wrap(int8_t val, int8_t size)
 }
 
 void loop() {
-  if (step_GOL == 240) { // This if reboot the world after 60 generation to avoid static world
+  if (step_GOL == 480) { // This if reboot the world after 60 generation to avoid static world
     step_GOL = 0;
     initializeWorld();
   }
 
   //This double "for" is used to update the world to the next generation
   //The buffer state is written on the EEPROM Memory
-  for (byte i = 0; i < 32; i++) {
-    for (byte j = 0; j < 32; j++) {
+  for (byte i = 0; i < ROWS; i++) {
+    for (byte j = 0; j < COLS; j++) {
 
-      byte num_alive = (WORLD[wrap(i - 1, 32)][wrap(j - 1, 32)] +
-                        WORLD[wrap(i - 1, 32)][j] +
-                        WORLD[wrap(i - 1, 32)][wrap(j + 1, 32)] +
-                        WORLD[i][wrap(j - 1, 32)] +
-                        WORLD[i][wrap(j + 1, 32)] +
-                        WORLD[wrap(i + 1, 32)][wrap(j - 1, 32)] +
-                        WORLD[wrap(i + 1, 32)][j] +
-                        WORLD[wrap(i + 1, 32)][wrap(j + 1, 32)]);
+      byte num_alive = (WORLD[wrap(i - 1, ROWS)][wrap(j - 1, COLS)] +
+                        WORLD[wrap(i - 1, ROWS)][j] +
+                        WORLD[wrap(i - 1, ROWS)][wrap(j + 1, COLS)] +
+                        WORLD[i][wrap(j - 1, COLS)] +
+                        WORLD[i][wrap(j + 1, COLS)] +
+                        WORLD[wrap(i + 1, ROWS)][wrap(j - 1, COLS)] +
+                        WORLD[wrap(i + 1, ROWS)][j] +
+                        WORLD[wrap(i + 1, ROWS)][wrap(j + 1, COLS)]);
       bool state = WORLD[i][j];
       
       //RULE#1 if you are surrounded by 3 cells --> you live
@@ -127,8 +169,8 @@ void loop() {
   }
 
   //Updating the World
-  for (byte i = 0; i < 32; i++) {
-    for (byte j = 0; j < 32; j++) {
+  for (byte i = 0; i < ROWS; i++) {
+    for (byte j = 0; j < COLS; j++) {
       WORLD[i][j] = WORLD2[i][j];
     }
   }
